@@ -19,7 +19,7 @@ def parse_code(encoded_field, raise_error=False):
         return 'INVALID: url-unquoting'
     
     try: 
-        code = b64decode(unquoted).decode('utf-8', errors='ignore')      
+        code = b64decode(unquoted, altchars='  ').decode('utf-8', errors='strict')      
         #code = um.utils.code_processing.decode_program(unquoted)
     except ValueError as exc:
         if raise_error:
