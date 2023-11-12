@@ -5,8 +5,8 @@ from base64 import b64decode
 from unidecode import unidecode
 
 
-def get_code(encoded_field):
-    return eval(encoded_field)[0][1]
+def process_code_string(code):
+    return unidecode(clean_code(parse_code(code)))
 
 
 def parse_code(encoded_field, raise_error=False):
@@ -48,10 +48,6 @@ def clean_code(code, raise_error=False):
     if raise_error:
         raise ValueError(f'{err}\n{code}')
     return 'INVALID: syntax'
-
-
-def remove_czech_symbols(code):
-    return unidecode(code)
 
 
 def fix_indent(code, raise_error=False):
