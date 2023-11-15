@@ -5,7 +5,10 @@ from base64 import b64decode
 from unidecode import unidecode
 
 
-def process_code_string(code):
+def decode_code_string(code: str) -> str:
+    """
+    Decode and standardize base64 encoded python code. Main endpoint for the module.
+    """
     return unidecode(clean_code(parse_code(code)))
 
 
