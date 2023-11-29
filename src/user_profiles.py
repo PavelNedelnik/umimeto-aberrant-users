@@ -54,6 +54,13 @@ feature_descriptions[20] = 'f841_unused_local_variable'
 # naive model
 log['distance'] = log['linter_messages'].apply(np.sum)
 
+"""
+14723775    29.755102
+9445105     16.380952
+28708079    11.836066
+18379796     9.386364
+28569500     9.000000
+"""
 
 user_id = 14723775
 subplot_dim = 2
