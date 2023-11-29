@@ -46,3 +46,19 @@ class DistanceModel:
 
     def fit_predict(self, profiles, messages):
         return self.fit(profiles, messages).predict(profiles, messages)
+    
+
+
+class FreqModel:
+    def __init__(self):
+        pass
+
+
+    def fit(self):
+        pass
+
+
+    def predict(self):
+        pass
+
+    

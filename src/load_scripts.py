@@ -12,7 +12,8 @@ def load_item(data_path: Path) -> pd.DataFrame:
     # load
     item = pd.read_csv(data_path / 'umimeprogramovatcz-ipython_item.csv', sep=';', index_col=0)
     # process
-    item = item[['name', 'solution']]
+    item = item[['name', 'instructions', 'solution']]
+    item['instructions'] = item['instructions'].apply(lambda x: eval(x)[0][1])
     item['solution'] = item['solution'].apply(lambda x: eval(x)[0][1]).apply(decode_code_string)
     return item
 
