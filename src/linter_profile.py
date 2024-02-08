@@ -1,7 +1,106 @@
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import normalize
 from typing import Optional
+from functools import partial
+from sklearn.preprocessing import normalize
+
+
+# TODO profiler interface
+
+class Profiler:
+    def __init__(self, target:str, embedding_dim:int) -> None:
+        self.dim = embedding_dim  # TODO could be replaced by "initial profile"
+        self.target = target
+
+
+    def build_profiles(self, log: pd.DataFrame) -> pd.Series:
+        profiles = []
+        for target, history in log.groupby(by=self.target):
+            profiles.append(self.build_profile(history))
+        return pd.concat(profiles)
+
+
+    def build_profile(self, history: pd.DataFrame) -> pd.Series:
+        if history.empty:
+            return pd.Series()
+        
+        history = history.sort_values(by='time')
+
+        profile = np.zeros(self.dim)
+        index = []
+        profiles = []
+        for idx, row in history.iterrows():
+            profiles.append(profile)
+            index.append(idx)
+            profile = self.update_profile(profile, row)
+        return pd.Series(profiles, index=index)
+
+
+    def update_profile(self, previous_profile: np.array, submission: pd.Series) -> np.array:
+        raise NotImplementedError('No profiling method provided!')
+    
+
+class TaskProfiler(Profiler):
+    def __init__(self, embedding_dim: int) -> None:
+        super().__init__('item', embedding_dim)
+
+
+class UserProfiler(Profiler):
+    def __init__(self, embedding_dim: int) -> None:
+        super().__init__('user', embedding_dim)
+
+
+class MeanTaskProfiler(TaskProfiler):
+    def __init__(self, embedding_dim: int) -> None:
+        super().__init__(embedding_dim)
+
+
+    def build_profile(self, history: pd.DataFrame) -> pd.Series:
+        profile = history['linter_messages'].mean()
+        return pd.Series([profile for _ in range(history.shape[0])], index=history.index)
+
+
+    def update_profile(self, *args) -> np.array:
+        raise NotImplementedError('Mean profiler does not support cumulative profile building.')
+    
+
+class MeanNormTaskProfiler(MeanTaskProfiler):
+    def __init__(self, embedding_dim: int, norm: str='l2') -> None:
+        super().__init__(embedding_dim)
+        self.norm = norm
+    
+
+    def build_profile(self, history: pd.DataFrame) -> pd.Series:
+        history['linter_messages'] = \
+            history['linter_messages'].apply(lambda x: normalize(x.reshape(1, -1), norm=self.norm).flatten())
+        return super().build_profile(history)
+    
+
+class NormSumTaskProfiler(TaskProfiler):
+    def __init__(self, embedding_dim: int, norm: str='l2') -> None:
+        super().__init__(embedding_dim)
+        self.norm = norm
+
+
+    def build_profile(self, history: pd.DataFrame) -> pd.Series:
+        profile = normalize(history['linter_messages'].sum().reshape(1, -1), norm=self.norm).flatten()
+        return pd.Series([profile for _ in range(history.shape[0])], index=history.index)
+
+
+    def update_profile(self, *args) -> np.array:
+        raise NotImplementedError('NormSum profiler does not support cumulative profile building.')
+    
+
+class NormForgetUserProfiler(UserProfiler):
+    def __init__(self, embedding_dim: int, norm: str='l2', remember_rate: float=0.8) -> None:
+        super().__init__(embedding_dim)
+        self.norm = norm
+        self.remember_rate = remember_rate
+
+
+    def update_profile(self, previous_profile: np.array, submission: pd.Series) -> np.array:
+        return previous_profile * self.remember_rate + (1 - self.remember_rate) * \
+            normalize(submission['linter_messages'].reshape(1, -1), norm=self.norm).flatten()
 
 
 def make_task_means(item: pd.DataFrame, log: pd.DataFrame) -> pd.Series:
