@@ -148,7 +148,7 @@ def describe_submission(clickData):
     
     point_info = clickData['points'][0]
     x_value = point_info['x']
-    y_value = point_info['y']
+    _ = point_info['y']
 
     return submission_to_string(x_value, log, item)
 

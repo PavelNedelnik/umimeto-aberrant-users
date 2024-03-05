@@ -8,6 +8,26 @@ from pylint.lint import Run
 from pylint.reporters.json_reporter import JSONReporter
 from tqdm import tqdm
 
+from src.load_scripts import load_ipython_log
+
+
+# TODO scraping andd loading needs an overhaul
+
+
+def scrape_linter_messages_by_user_activity(min_submissions: int, max_submissions: int, log_path: Path, results_path: Path):
+    if max_submissions <= min_submissions:
+        raise ValueError('Range is empty!')
+    log = load_ipython_log(log_path)
+    counts = log['user'].value_counts()
+    selected_counts = counts[(counts >= min_submissions) & (counts < max_submissions)]
+    print(
+        f'In the range of {min_submissions} to {max_submissions} submissions found \
+        {selected_counts.shape[0]} users, with total {selected_counts.sum()} submissions, \
+        corresponding to {selected_counts.sum() / log.shape[0] * 100}% of the data.'
+    )
+    log = log.query('user in @selected_counts.index')
+    return analyze_strings(map(lambda tup: tup[1], log['answer'].items()), result_path=results_path)
+
 
 def edulint_analyze(file_path):
     result = subprocess.run(['py', '-m', 'edulint', str(file_path)], text=True, capture_output=True)
@@ -21,19 +41,11 @@ def pylint_analyze(file_path):
     return [error.symbol for error in result.linter.reporter.messages]
 
 
-def flake8_analyze(file_path):
-    raise RuntimeError('Not implemented!')
-    result = subprocess.run(['flake8', '-'], input=code_string, text=True, capture_output=True)
-    return result.stdout.split('\n')
-
-
 def call_analyze(file_path, mode):
     if mode == 'edulint':
         return edulint_analyze(file_path)
     elif mode == 'pylint':
         return pylint_analyze(file_path)
-    elif mode == 'flake8':
-        return flake8_analyze(file_path)
     
     raise RuntimeError('Mode not recognized!')
 

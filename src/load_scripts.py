@@ -1,7 +1,10 @@
-import json
 import pandas as pd
+import numpy as np
+import re
+import json
 from pathlib import Path
 from src.code_processing import decode_code_string
+from sklearn.feature_extraction.text import CountVectorizer
 
 
 def load_ipython_item(data_path: Path) -> pd.DataFrame:
@@ -29,6 +32,17 @@ def load_ipython_item(data_path: Path) -> pd.DataFrame:
         ]
     ])
     return item
+
+
+def filter_for_only_codes(linter_messages:list[list[str]], pattern: str=r'^[A-Z0-9]+$') -> list[list[str]]:
+    filtered_lists = []
+    regex = re.compile(pattern)
+    
+    for messages in linter_messages:
+        messages = [error_code for error_code in messages if regex.match(error_code)]
+        filtered_lists.append(messages)
+    
+    return filtered_lists
 
 
 def load_ipython_log(data_path: Path, linter_messages_path:Path=None) -> pd.DataFrame:
@@ -62,9 +76,33 @@ def load_ipython_log(data_path: Path, linter_messages_path:Path=None) -> pd.Data
             start, end = int(start), int(end)
             selected_counts = counts[(counts >= start) & (counts < end)]  # noqa: F841
             log_slice = pd.DataFrame(log.query('user in @selected_counts.index'))
+            messages = filter_for_only_codes(json.load(open(file_path, 'r')))
+            log_slice['linter_messages'] = [' '.join(alist) for alist in messages]
+            new_log.append(log_slice)
+
+        new_log = pd.concat(new_log)
+        vectorizer = CountVectorizer(stop_words = ['f821'], min_df=0.0005, max_df=0.4, binary=True)
+        vectors = vectorizer.fit_transform(new_log['linter_messages'])
+        features = vectorizer.get_feature_names_out()
+
+        new_log['linter_messages'] = list(map(np.array, vectors.toarray().tolist()))
+
+        return new_log, features
+
+    """
+    if linter_messages_path is not None:
+        new_log = []
+        counts = log['user'].value_counts()
+
+        for file_path in (linter_messages_path).glob("edulint_results*.json"):
+            start, end = file_path.stem.split('_')[2].split('-')
+            start, end = int(start), int(end)
+            selected_counts = counts[(counts >= start) & (counts < end)]  # noqa: F841
+            log_slice = pd.DataFrame(log.query('user in @selected_counts.index'))
             log_slice['linter_messages'] = [' '.join(alist) for alist in json.load(open(file_path, 'r'))]
             new_log.append(log_slice)
 
         log = pd.concat(new_log)
+    """
 
     return log
